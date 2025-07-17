@@ -1,0 +1,153 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Đồ thị với trục cong tùy chỉnh</title>
+  <style>
+    canvas { border: 1px solid black; }
+    body { font-family: sans-serif; padding: 10px; }
+    input[type='range'] { width: 200px; }
+    input[type='number'], input[type='text'], select { width: 100px; }
+  </style>
+</head>
+<body>
+  <h2>Đồ thị với trục cong tùy chỉnh</h2>
+  <label>Hàm số f(x): <input id="functionInput" value="x*x" /></label><br><br>
+
+  <label>Kiểu cong trục Ox:
+    <select id="typeOx">
+      <option value="linear">Thẳng</option>
+      <option value="sin">Sin</option>
+      <option value="parab">Parabol</option>
+      <option value="log">Log</option>
+    </select>
+  </label>
+
+  <label>Độ cong Ox: 
+    <input type="range" id="bendX" min="-100" max="100" value="0" />
+    <input type="number" id="bendXNum" min="-100" max="100" value="0" />
+  </label><br>
+
+  <label>Kiểu cong trục Oy:
+    <select id="typeOy">
+      <option value="linear">Thẳng</option>
+      <option value="sin">Sin</option>
+      <option value="parab">Parabol</option>
+      <option value="log">Log</option>
+    </select>
+  </label>
+
+  <label>Độ cong Oy: 
+    <input type="range" id="bendY" min="-100" max="100" value="0" />
+    <input type="number" id="bendYNum" min="-100" max="100" value="0" />
+  </label><br><br>
+
+  <p style="color:red;" id="error"></p>
+  <canvas id="canvas" width="800" height="600"></canvas>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const origin = { x: 400, y: 300 };
+    const functionInput = document.getElementById("functionInput");
+    const errorDisplay = document.getElementById("error");
+
+    const bendX = document.getElementById("bendX");
+    const bendXNum = document.getElementById("bendXNum");
+    const bendY = document.getElementById("bendY");
+    const bendYNum = document.getElementById("bendYNum");
+
+    const typeOx = document.getElementById("typeOx");
+    const typeOy = document.getElementById("typeOy");
+
+    function syncSliders(slider, number) {
+      slider.oninput = () => { number.value = slider.value; drawAll(); };
+      number.oninput = () => { slider.value = number.value; drawAll(); };
+    }
+
+    syncSliders(bendX, bendXNum);
+    syncSliders(bendY, bendYNum);
+    typeOx.onchange = drawAll;
+    typeOy.onchange = drawAll;
+
+    function fx(x, type, strength) {
+      x = x * 0.02;
+      switch(type) {
+        case "sin": return strength * Math.sin(x);
+        case "parab": return strength * x * x;
+        case "log": return x > 0 ? strength * Math.log(x + 1) : 0;
+        default: return 0;
+      }
+    }
+
+    function drawAxes() {
+      const tX = typeOx.value;
+      const tY = typeOy.value;
+      const sX = parseFloat(bendX.value);
+      const sY = parseFloat(bendY.value);
+
+      // Trục Ox
+      ctx.strokeStyle = "red";
+      ctx.beginPath();
+      for (let x = -canvas.width; x <= canvas.width; x++) {
+        const gx = origin.x + x;
+        const gy = origin.y + fx(x, tX, sX);
+        if (x === -200) ctx.moveTo(gx, gy);
+        else ctx.lineTo(gx, gy);
+      }
+      ctx.stroke();
+
+      // Trục Oy
+      ctx.strokeStyle = "blue";
+      ctx.beginPath();
+      for (let y = -canvas.height; y <= canvas.height; y++) {
+        const gx = origin.x + fx(y, tY, sY);
+        const gy = origin.y - y;
+        if (y === -200) ctx.moveTo(gx, gy);
+        else ctx.lineTo(gx, gy);
+      }
+      ctx.stroke();
+    }
+
+    function transform(x, y) {
+      const tX = typeOx.value;
+      const tY = typeOy.value;
+      const sX = parseFloat(bendX.value);
+      const sY = parseFloat(bendY.value);
+
+      const px = origin.x + x + fx(y, tY, sY);
+      const py = origin.y + fx(x, tX, sX) - y;
+      return { x: px, y: py };
+    }
+
+    function drawFunction() {
+      try {
+        const expr = functionInput.value.replace(/(\w+)\s*\^\s*(-?\d+)/g, "Math.pow($1,$2)");
+        const f = new Function("x", "with(Math){ return " + expr + " }");
+        ctx.beginPath();
+        ctx.strokeStyle = "green";
+        for (let x = -200; x <= 200; x += 1) {
+          const y = f(x / 20);
+          const p = transform(x, y * 20);
+          if (x === -200) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+        errorDisplay.textContent = "";
+      } catch (e) {
+        errorDisplay.textContent = "Lỗi trong hàm số: " + e.message;
+      }
+    }
+
+    function drawAll() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawAxes();
+      drawFunction();
+    }
+
+    functionInput.oninput = drawAll;
+    drawAll();
+  </script>
+</body>
+</html>
